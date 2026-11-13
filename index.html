@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Mortal Fight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="bar-wrap left">
+      <div class="name" id="p1name">KAEL</div>
+      <div class="bar"><div class="lag" id="p1lag"></div><div class="fill" id="p1hp"></div></div>
+      <div class="wins" id="p1wins"></div>
+    </div>
+    <div class="timer" id="timer">99</div>
+    <div class="bar-wrap right">
+      <div class="name" id="p2name">VEXA</div>
+      <div class="bar"><div class="lag" id="p2lag"></div><div class="fill" id="p2hp"></div></div>
+      <div class="wins" id="p2wins"></div>
+    </div>
+    <div class="combo left" id="p1combo"></div>
+    <div class="combo right" id="p2combo"></div>
+  </div>
+
+  <div id="announce"></div>
+
+  <div id="menu" class="screen">
+    <h1>MORTAL<span>FIGHT</span></h1>
+    <div class="loading" id="loading">Carregando lutadores… <span id="loadpct">0%</span></div>
+    <div class="buttons hidden" id="menuButtons">
+      <button data-mode="cpu">1 JOGADOR <small>contra o computador</small></button>
+      <button data-mode="pvp">2 JOGADORES <small>mesmo teclado</small></button>
+    </div>
+    <div class="controls">
+      <div><b>Jogador 1</b> A / D andar · S defender · J soco · U gancho · K chute · I chute alto</div>
+      <div><b>Jogador 2</b> ← / → andar · ↓ defender · 1 soco · 2 gancho · 3 chute · 4 chute alto (teclado numérico)</div>
+      <div><b>P</b> pausa · <b>M</b> som</div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hidden"><h2>PAUSADO</h2><p>Aperte P para voltar · ESC para o menu</p></div>
+
+  <div id="touch" class="hidden">
+    <div class="pad">
+      <button data-k="left">◀</button><button data-k="block">🛡</button><button data-k="right">▶</button>
+    </div>
+    <div class="atk">
+      <button data-k="hook">GANCHO</button><button data-k="high">CHUTE ALTO</button>
+      <button data-k="punch">SOCO</button><button data-k="kick">CHUTE</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
