@@ -322,6 +322,7 @@ addEventListener('resize', resize); resize();
 // ---------- menus / keys ----------
 document.querySelectorAll('#menuButtons button').forEach((b) => b.addEventListener('click', () => { sfx.unlock(); startMatch(b.dataset.mode); }));
 input.onKey = (e) => {
+  if (e.code === 'Enter' && phase === 'menu' && fighters.length && !$('menu').classList.contains('hidden')) { sfx.unlock(); startMatch('cpu'); return true; }
   if (e.code === 'KeyP' && phase !== 'menu') { paused = !paused; $('pause').classList.toggle('hidden', !paused); return true; }
   if (e.code === 'Escape' && paused) { paused = false; $('pause').classList.add('hidden'); $('menu').classList.remove('hidden'); $('hud').classList.add('hidden'); phase = 'menu'; fighters.forEach((f) => f.reset()); return true; }
   if (e.code === 'KeyM') { sfx.toggleMute(); return true; }
@@ -329,17 +330,52 @@ input.onKey = (e) => {
 };
 
 // ---------- load ----------
-const loader = new GLTFLoader();
-loader.load('models/fighter.glb', (gltf) => {
-  const prepared = prepareClips(gltf);
-  const p1 = new Fighter(gltf, prepared, { name: 'KAEL', color: 0x8c0f14, accent: 0xff5a1f, side: -1 });
-  const p2 = new Fighter(gltf, prepared, { name: 'VEXA', color: 0x0d3f6e, accent: 0x38c8ff, side: 1 });
-  scene.add(p1.obj, p2.obj);
-  fighters = [p1, p2];
-  window.__game = { scene, camera, fighters, prepared, get phase() { return phase; }, startMatch, input,
-    sim(sec) { for (let t = 0; t < sec; t += 1 / 60) step(1 / 60); composer.render(); } };
-  $('loading').classList.add('hidden'); $('menuButtons').classList.remove('hidden');
-}, (e) => { if (e.total) $('loadpct').textContent = Math.round((e.loaded / e.total) * 100) + '%'; },
-(err) => { $('loading').textContent = 'Erro ao carregar o modelo: ' + err.message; });
+const MODEL_URL = 'models/fighter.glb';
+
+// Downloads the model with progress. Accepts a .glb or a .gltf/.json with an embedded base64 buffer;
+// the latter is rebuilt into a GLB in memory so no data: URL has to be fetched (some hosts block that).
+async function loadModelBuffer(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const total = +res.headers.get('content-length') || 0;
+  let bytes;
+  if (res.body && res.body.getReader) {
+    const reader = res.body.getReader(); const parts = []; let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      parts.push(value); got += value.length;
+      $('loadpct').textContent = total ? Math.round((got / total) * 100) + '%' : (got / 1048576).toFixed(1) + ' MB';
+    }
+    bytes = new Uint8Array(got); let o = 0; for (const p of parts) { bytes.set(p, o); o += p.length; }
+  } else bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes[0] === 0x67 && bytes[1] === 0x6c && bytes[2] === 0x54 && bytes[3] === 0x46) return bytes.buffer; // 'glTF'
+  const json = JSON.parse(new TextDecoder().decode(bytes));
+  const uri = json.buffers[0].uri; delete json.buffers[0].uri;
+  const bin = Uint8Array.from(atob(uri.slice(uri.indexOf(',') + 1)), (c) => c.charCodeAt(0));
+  const pad4 = (n) => (n + 3) & ~3;
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(json));
+  const jl = pad4(jsonBytes.length), bl = pad4(bin.length), totalLen = 12 + 8 + jl + 8 + bl;
+  const out = new ArrayBuffer(totalLen), dv = new DataView(out), u8 = new Uint8Array(out);
+  dv.setUint32(0, 0x46546c67, true); dv.setUint32(4, 2, true); dv.setUint32(8, totalLen, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4e4f534a, true); u8.fill(0x20, 20, 20 + jl); u8.set(jsonBytes, 20);
+  dv.setUint32(20 + jl, bl, true); dv.setUint32(24 + jl, 0x004e4942, true); u8.set(bin, 28 + jl);
+  return out;
+}
+
+addEventListener('error', (e) => { if (!fighters.length) $('loading').textContent = 'Erro: ' + e.message; });
+
+loadModelBuffer(MODEL_URL)
+  .then((buf) => new GLTFLoader().parseAsync(buf, ''))
+  .then((gltf) => {
+    const prepared = prepareClips(gltf);
+    const p1 = new Fighter(gltf, prepared, { name: 'KAEL', color: 0x8c0f14, accent: 0xff5a1f, side: -1 });
+    const p2 = new Fighter(gltf, prepared, { name: 'VEXA', color: 0x0d3f6e, accent: 0x38c8ff, side: 1 });
+    scene.add(p1.obj, p2.obj);
+    fighters = [p1, p2];
+    window.__game = { scene, camera, fighters, prepared, get phase() { return phase; }, startMatch, input,
+      sim(sec) { for (let t = 0; t < sec; t += 1 / 60) step(1 / 60); composer.render(); } };
+    $('loading').classList.add('hidden'); $('menuButtons').classList.remove('hidden');
+  })
+  .catch((err) => { $('loading').textContent = 'Erro ao carregar os lutadores: ' + err.message; });
 
 frame();
